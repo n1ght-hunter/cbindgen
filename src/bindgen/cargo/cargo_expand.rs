@@ -86,6 +86,9 @@ pub fn expand(
         cmd.env("CARGO_TARGET_DIR", PathBuf::from(path).join("expanded"));
     }
 
+    // Set the `RUSTC_BOOTSTRAP` environment variable to allow using use of -Zunpretty=expanded in stable toolchain
+    cmd.env("RUSTC_BOOTSTRAP", "1");
+
     // Set this variable so that we don't call it recursively if we expand a crate that is using
     // cbindgen
     cmd.env("_CBINDGEN_IS_RUNNING", "1");
