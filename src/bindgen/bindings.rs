@@ -133,8 +133,16 @@ impl Bindings {
     pub fn dynamic_symbols_names(&self) -> impl Iterator<Item = &str> {
         use crate::bindgen::ir::Item;
 
-        let function_names = self.functions.iter().map(|f| f.path().name());
-        let global_names = self.globals.iter().map(|g| g.export_name());
+        let function_names = self
+            .functions
+            .iter()
+            .filter(|f| f.annotations.should_export())
+            .map(|f| f.path().name());
+        let global_names = self
+            .globals
+            .iter()
+            .filter(|s| s.annotations.should_export())
+            .map(|g| g.export_name());
         function_names.chain(global_names)
     }
 
@@ -145,7 +153,7 @@ impl Bindings {
         let mut writer = BufWriter::new(File::create(symfile_path).unwrap());
         writeln!(&mut writer, "{{").expect("writing symbol file header failed");
         for symbol in self.dynamic_symbols_names() {
-            writeln!(&mut writer, "{};", symbol).expect("writing symbol failed");
+            writeln!(&mut writer, "{symbol};").expect("writing symbol failed");
         }
         write!(&mut writer, "}};").expect("writing symbol file footer failed");
     }

@@ -63,6 +63,10 @@ impl AnnotationSet {
         self.must_use && config.language != Language::Cython
     }
 
+    pub(crate) fn should_export(&self) -> bool {
+        !self.bool("no-export").unwrap_or(false)
+    }
+
     pub(crate) fn deprecated_note<'c>(
         &self,
         config: &'c Config,
@@ -92,7 +96,7 @@ impl AnnotationSet {
             DeprecatedNoteKind::Struct => &config.structure.deprecated_with_note,
         }
         .as_ref()?;
-        Some(Cow::Owned(format.replace("{}", &format!("{:?}", note))))
+        Some(Cow::Owned(format.replace("{}", &format!("{note:?}"))))
     }
 
     pub fn load(attrs: &[syn::Attribute]) -> Result<AnnotationSet, String> {
@@ -124,7 +128,7 @@ impl AnnotationSet {
             let parts: Vec<&str> = annotation.split('=').map(|x| x.trim()).collect();
 
             if parts.len() > 2 {
-                return Err(format!("Couldn't parse {}.", line));
+                return Err(format!("Couldn't parse {line}."));
             }
 
             // Grab the name that this annotation is modifying
