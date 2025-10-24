@@ -117,7 +117,27 @@ pub enum Literal {
 }
 
 impl Literal {
-    fn replace_self_with(&mut self, self_ty: &Path) {
+    pub fn add_dependencies(&self, library: &Library, out: &mut Dependencies) {
+        self.visit(&mut |lit| {
+            match lit {
+                Literal::Struct {
+                    ref path,
+                    export_name: _,
+                    fields: _,
+                }
+                | Literal::Path {
+                    associated_to: Some((ref path, _)),
+                    name: _,
+                } => {
+                    out.add(library, path);
+                }
+                _ => {}
+            }
+            true
+        });
+    }
+
+    pub fn replace_self_with(&mut self, self_ty: &Path) {
         match *self {
             Literal::PostfixUnaryOp { ref mut value, .. } => {
                 value.replace_self_with(self_ty);
@@ -579,6 +599,7 @@ impl Item for Constant {
 
     fn add_dependencies(&self, library: &Library, out: &mut Dependencies) {
         self.ty.add_dependencies(library, out);
+        self.value.add_dependencies(library, out);
     }
 
     fn export_name(&self) -> &str {
@@ -636,13 +657,16 @@ impl Constant {
         debug_assert!(config.structure.associated_constants_in_body);
         debug_assert!(config.constant.allow_static_const);
 
+        let condition = self.cfg.to_condition(config);
+        condition.write_before(config, out);
         if let Type::Ptr { is_const: true, .. } = self.ty {
             out.write("static ");
         } else {
             out.write("static const ");
         }
         language_backend.write_type(out, &self.ty);
-        write!(out, " {};", self.export_name())
+        write!(out, " {};", self.export_name());
+        condition.write_after(config, out);
     }
 
     pub fn write<F: Write, LB: LanguageBackend>(
